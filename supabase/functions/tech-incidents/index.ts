@@ -98,8 +98,7 @@ serve(async (req: Request) => {
       const artifactData = await handleArtifact(body);
       
       const incidentData = {
-        ...body.addition,
-        artifact: artifactData
+        ...body.addition, ...artifactData
       };
       
       const { error } = await supabase

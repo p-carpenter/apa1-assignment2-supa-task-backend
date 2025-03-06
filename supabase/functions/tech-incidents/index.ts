@@ -1,20 +1,14 @@
 import { serve } from "https://deno.land/std@0.181.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Initialize Supabase client
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-// Function to process code artifact
 function processCodeArtifact(content: string) {
-  return {
-    type: "code",
-    content: content
-  };
+  return { artifactContent: content };
 }
 
-// Function to process image artifact
 async function processImageArtifact(fileData: string, fileName: string, fileType: string, displayName: string) {
   try {
     const base64Data = fileData.split(',')[1];
@@ -36,11 +30,7 @@ async function processImageArtifact(fileData: string, fileName: string, fileType
       .from("incident-artifacts")
       .getPublicUrl(data.path);
 
-    return {
-      type: "image",
-      url: urlData.publicUrl,
-      alt: `Image for ${displayName}`
-    };
+    return { artifactContent: urlData.publicUrl };
   } catch (error) {
     console.error('Error processing file upload:', error);
     throw error;
@@ -49,29 +39,33 @@ async function processImageArtifact(fileData: string, fileName: string, fileType
 
 // Function to handle artifact creation or update
 async function handleArtifact(body: any, isUpdate = false) {
-  let artifactData = null;
+  let artifactContent;
   
-  if (body.artifactType) {
-    if (body.artifactType === "code" && body.artifactContent) {
-      artifactData = processCodeArtifact(body.artifactContent);
-    } else if (body.artifactType === "image" && body.fileData) {
+  if (body.addition?.artifactType || body.update?.artifactType) {
+    const artifactType = isUpdate ? body.update.artifactType : body.addition.artifactType;
+    
+    if (artifactType === "code") {
+      const content = isUpdate ? body.update.artifactContent : body.addition.artifactContent;
+      if (content) {
+        artifactContent = processCodeArtifact(content);
+      }
+    } else if (artifactType === "image" && body.fileData) {
       const displayName = isUpdate 
         ? (body.update?.name || 'incident')
         : (body.addition?.name || 'incident');
       
-      artifactData = await processImageArtifact(
+      artifactContent = await processImageArtifact(
         body.fileData, 
         body.fileName || 'artifact.png', 
         body.fileType || 'image/png',
         displayName
       );
-    } else if (body.artifactType === "none") {
-      // Explicitly set to null when removing artifact
-      artifactData = null;
+    } else if (artifactType === "none") {
+      artifactContent = { artifactContent: null };
     }
   }
   
-  return artifactData;
+  return artifactContent || {};
 }
 
 serve(async (req: Request) => {
@@ -98,8 +92,11 @@ serve(async (req: Request) => {
       const artifactData = await handleArtifact(body);
       
       const incidentData = {
-        ...body.addition, ...artifactData
+        ...body.addition,
+        ...artifactData
       };
+      
+      console.log('Inserting data:', incidentData);
       
       const { error } = await supabase
         .from("tech-incidents")
@@ -126,16 +123,15 @@ serve(async (req: Request) => {
       const body = await req.json();
       console.log('Edge function received:', body);
       
-      // Get base update data
-      let updateData = { ...body.update };
-      
       // Process artifact data for update
       const artifactData = await handleArtifact(body, true);
       
-      // Add artifact to update data if it was processed
-      if (body.artifactType) {
-        updateData.artifact = artifactData;
-      }
+      const updateData = {
+        ...body.update,
+        ...artifactData
+      };
+      
+      console.log('Updating with data:', updateData);
 
       const { error } = await supabase
         .from('tech-incidents')

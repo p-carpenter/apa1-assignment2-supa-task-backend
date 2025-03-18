@@ -9,12 +9,15 @@ function processCodeArtifact(content: string) {
   return { artifactContent: content };
 }
 
-async function processImageArtifact(fileData: string, fileName: string, fileType: string, displayName: string) {
+async function processImageArtifact(fileData, fileName, fileType, displayName) {
   try {
+
     const base64Data = fileData.split(',')[1];
+
     const fileBlob = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
     
     const filename = `${Date.now()}-${fileName || 'artifact.png'}`;
+
     const { data, error: uploadError } = await supabase.storage
       .from("incident-artifacts")
       .upload(filename, fileBlob, {
@@ -25,11 +28,12 @@ async function processImageArtifact(fileData: string, fileName: string, fileType
       console.error('File upload error:', uploadError);
       throw uploadError;
     }
-
+    
     const { data: urlData } = supabase.storage
       .from("incident-artifacts")
       .getPublicUrl(data.path);
-
+    
+    
     return { artifactContent: urlData.publicUrl };
   } catch (error) {
     console.error('Error processing file upload:', error);
@@ -70,12 +74,12 @@ async function handleArtifact(body: any, isUpdate = false) {
 
 serve(async (req: Request) => {
   const headers = { "Content-Type": "application/json" };
-
+  const table_name = "tech_incidents"
   try {
     // Handle GET request - fetch incidents
     if (req.method === "GET") {
       const { data, error } = await supabase
-        .from("tech-incidents")
+        .from(table_name)
         .select("*")
         .order("incident_date", { ascending: true });
 
@@ -99,7 +103,7 @@ serve(async (req: Request) => {
       console.log('Inserting data:', incidentData);
       
       const { error } = await supabase
-        .from("tech-incidents")
+        .from(table_name)
         .insert([incidentData]);
       
       if (error) {
@@ -109,7 +113,7 @@ serve(async (req: Request) => {
 
       // Return the updated data
       const { data, error: fetchError } = await supabase
-        .from("tech-incidents")
+        .from(table_name)
         .select("*")
         .order("incident_date", { ascending: true });
 
@@ -134,7 +138,7 @@ serve(async (req: Request) => {
       console.log('Updating with data:', updateData);
 
       const { error } = await supabase
-        .from('tech-incidents')
+        .from(table_name)
         .update(updateData) 
         .eq('id', body.id)
         .select();
@@ -145,7 +149,7 @@ serve(async (req: Request) => {
       }
 
       const { data, error: fetchError } = await supabase
-        .from("tech-incidents")
+        .from(table_name)
         .select("*")
         .order("incident_date", { ascending: true });
 
@@ -159,7 +163,7 @@ serve(async (req: Request) => {
       const body = await req.json();
       console.log('Edge function received:', body);
 
-      let query = supabase.from('tech-incidents').delete();
+      let query = supabase.from(table_name).delete();
 
       if (body.ids && Array.isArray(body.ids)) {
         // Bulk delete
@@ -183,7 +187,7 @@ serve(async (req: Request) => {
 
       // Return updated data
       const { data, error: fetchError } = await supabase
-        .from("tech-incidents")
+        .from(table_name)
         .select("*")
         .order("incident_date", { ascending: true });
 

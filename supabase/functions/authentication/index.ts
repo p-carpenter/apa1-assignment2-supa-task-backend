@@ -83,19 +83,19 @@ serve(async (req: Request) => {
   }
 
   try {
-    // Sign up endpoint
-    if (path === "signup" && req.method === "POST") {
-      const { email, password } = await req.json();
-
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      return new Response(JSON.stringify({ user: data.user, session: data.session }), { headers });
-    }
+// Sign up endpoint
+if (path === "signup" && req.method === "POST") {
+  const { email, password } = await req.json();
+  
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+  
+  if (error) throw error;
+  
+  return new Response(JSON.stringify({ user: data.user, session: data.session }), { headers });
+}
 
     // Sign in endpoint
     if (path === "signin" && req.method === "POST") {

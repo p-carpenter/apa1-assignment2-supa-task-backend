@@ -10,10 +10,6 @@ serve(async (req: Request) => {
   const path = url.pathname.split('/').pop();
   const headers = {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": url.origin,
-    "Access-Control-Allow-Credentials": "true",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
 
   if (req.method === "OPTIONS") {
